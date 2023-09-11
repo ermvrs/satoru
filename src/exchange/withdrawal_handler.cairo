@@ -183,7 +183,7 @@ mod WithdrawalHandler {
 
             feature_utils::validate_feature(data_store, keys::cancel_withdrawal_feature_disabled_key(get_contract_address()));
 
-            exchange_utils::validate_request_cancellation(data_store, withdrawal.updated_at_block.try_into().unwrap() , 'Withdrawal'); // TODO withdrawal.updatedAtBlock()
+            exchange_utils::validate_request_cancellation(data_store, withdrawal.updated_at_block.try_into().unwrap() , 'Withdrawal');
 
             withdrawal_utils::cancel_withdrawal(data_store, self.event_emitter.read(), self.withdrawal_vault.read(), 
                                                 key, withdrawal.account, starting_gas, keys::user_initiated_cancel(), array![]);

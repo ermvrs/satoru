@@ -13,6 +13,7 @@ use satoru::data::keys::{
 use satoru::role::role_store::{IRoleStoreDispatcher, IRoleStoreDispatcherTrait};
 use satoru::role::role;
 use satoru::withdrawal::withdrawal_utils::CreateWithdrawalParams;
+use satoru::withdrawal::withdrawal::Withdrawal;
 
 #[test]
 fn test_create_withdrawal() {
@@ -48,6 +49,174 @@ fn test_create_withdrawal() {
 
     withdrawal_handler.create_withdrawal(account, params);
 }
+
+#[test]
+#[should_panic(expected: ('unauthorized_access',))]
+fn test_create_withdrawal_restricted_access() {
+    // Should revert, call from anyone else then controller.
+    let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+    let caller: ContractAddress = 0x847.try_into().unwrap();
+    start_prank(withdrawal_handler.contract_address, caller);
+
+        let params: CreateWithdrawalParams = CreateWithdrawalParams {
+            receiver: Default::default(),
+            callback_contract: Default::default(),
+            ui_fee_receiver: Default::default(),
+            market: Default::default(),
+            long_token_swap_path: Default::default(),
+            short_token_swap_path: Default::default(),
+            min_long_token_amount: Default::default(),
+            min_short_token_amount: Default::default(),
+            should_unwrap_native_token: Default::default(),
+            execution_fee: Default::default(),
+            callback_gas_limit: Default::default(),
+    };
+
+    withdrawal_handler.create_withdrawal(caller, params);
+}
+
+#[test]
+fn test_cancel_withdrawal() {
+    let withdrawal = Withdrawal {
+        key: Default::default(),
+        account: Default::default(),
+        receiver: Default::default(),
+        callback_contract: Default::default(),
+        ui_fee_receiver: Default::default(),
+        market: Default::default(),
+        long_token_swap_path: Default::default(),
+        short_token_swap_path: Default::default(),
+        market_token_amount: Default::default(),
+        min_long_token_amount: Default::default(),
+        min_short_token_amount: Default::default(),
+        updated_at_block: Default::default(),
+        execution_fee: Default::default(),
+        callback_gas_limit: Default::default(),
+        should_unwrap_native_token: Default::default(),
+    };
+
+    let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+    data_store.set_withdrawal(withdrawal_key, withdrawal);
+
+    // Key cleaning should be done in withdrawal_utils. We only check call here.
+    withdrawal_handler.cancel_withdrawal(withdrawal_key);
+}
+
+#[test]
+#[should_panic(expected: ('REVERT SMTH at unwrap',))]
+fn test_cancel_withdrawal_unexist_key() {
+    let withdrawal = Withdrawal { // TODO: set block numbers to wont get reverted on exchange utils
+        key: Default::default(),
+        account: Default::default(),
+        receiver: Default::default(),
+        callback_contract: Default::default(),
+        ui_fee_receiver: Default::default(),
+        market: Default::default(),
+        long_token_swap_path: Default::default(),
+        short_token_swap_path: Default::default(),
+        market_token_amount: Default::default(),
+        min_long_token_amount: Default::default(),
+        min_short_token_amount: Default::default(),
+        updated_at_block: Default::default(),
+        execution_fee: Default::default(),
+        callback_gas_limit: Default::default(),
+        should_unwrap_native_token: Default::default(),
+    };
+
+    let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+
+    // Key cleaning should be done in withdrawal_utils. We only check call here.
+    withdrawal_handler.cancel_withdrawal(withdrawal_key);
+}
+
+#[test]
+#[should_panic(expected: ('unauthorized_access',))]
+fn test_execute_withdrawal_restricted() {
+    let oracle_params = SetPricesParams {
+        signer_info: Default::default(),
+        tokens: Default::default(),
+        compacted_min_oracle_block_numbers: Default::default(),
+        compacted_max_oracle_block_numbers: Default::default(),
+        compacted_oracle_timestamps: Default::default(),
+        compacted_decimals: Default::default(),
+        compacted_min_prices: Default::default(),
+        compacted_min_prices_indexes: Default::default(),
+        compacted_max_prices: Default::default(),
+        compacted_max_prices_indexes: Default::default(),
+        signatures: Default::default(),
+        price_feed_tokens: Default::default(),
+    };
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+
+    withdrawal_handler.execute_withdrawal(withdrawal_key, oracle_params);
+}
+
+#[test]
+fn test_execute_withdrawal() {
+    // TODO: call with orderkeeper role
+}
+
+#[test]
+#[should_panic(expected: ('unauthorized_access',))]
+fn test_simulate_execute_withdrawal_restricted() {
+    let caller: ContractAddress = 0x847.try_into().unwrap();
+    start_prank(withdrawal_handler.contract_address, caller);
+
+    let oracle_params = SimulatePricesParams {
+        primary_tokens: Default::default(),
+        primary_prices: Default::default(),
+    };
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+
+    withdrawal_handler.simulate_execute_withdrawal(withdrawal_key, oracle_params);
+}
+
+#[test]
+fn test_simulate_execute_withdrawal() {
+    let oracle_params = SimulatePricesParams {
+        primary_tokens: Default::default(),
+        primary_prices: Default::default(),
+    };
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+
+    withdrawal_handler.simulate_execute_withdrawal(withdrawal_key, oracle_params);
+}
+
+#[test]
+fn test_execute_withdrawal_keeper() {
+    // TODO: prank caller address to contract itself.
+}
+
+#[test]
+#[should_panic(expected: ('only self',))]
+fn test_execute_withdrawal_keeper_restricted() {
+    let oracle_params = SetPricesParams {
+        signer_info: Default::default(),
+        tokens: Default::default(),
+        compacted_min_oracle_block_numbers: Default::default(),
+        compacted_max_oracle_block_numbers: Default::default(),
+        compacted_oracle_timestamps: Default::default(),
+        compacted_decimals: Default::default(),
+        compacted_min_prices: Default::default(),
+        compacted_min_prices_indexes: Default::default(),
+        compacted_max_prices: Default::default(),
+        compacted_max_prices_indexes: Default::default(),
+        signatures: Default::default(),
+        price_feed_tokens: Default::default(),
+    };
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+
+    withdrawal_handler.execute_withdrawal_keeper(withdrawal_key, oracle_params, withdrawal_handler.contract_address);
+}
+
 
 fn deploy_withdrawal_handler(data_store_address: ContractAddress, role_store_address: ContractAddress,
                                         event_emitter_address: ContractAddress, withdrawal_vault_address: ContractAddress,
