@@ -30,7 +30,13 @@ use satoru::utils::store_arrays::{
 /// * `compacted_max_prices_indexes` - compacted max price indexes.
 /// * `signatures` - signatures of the oracle signers.
 /// * `price_feed_tokens` - tokens to set prices for based on an external price feed value.
-#[derive(Drop, Serde)]
+
+impl ContractAddressArrayCopy of Copy<Array<ContractAddress>>;
+impl U64ArrayCopy of Copy<Array<u64>>;
+impl U128ArrayCopy of Copy<Array<u128>>;
+impl Felt252ArrayCopy of Copy<Array<felt252>>;
+
+#[derive(Drop, Serde, Copy)]
 struct SetPricesParams {
     signer_info: u128,
     tokens: Array<ContractAddress>,
