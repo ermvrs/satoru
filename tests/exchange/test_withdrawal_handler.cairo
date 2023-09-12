@@ -4,16 +4,23 @@ use starknet::{
 use snforge_std::{declare, start_prank, stop_prank, ContractClassTrait};
 
 use satoru::event::event_emitter::{IEventEmitterDispatcher, IEventEmitterDispatcherTrait};
-use satoru::exchange::withdrawal_handler::{IWithdrawalHandlerDispatcher, IWithdrawalHandlerDispatcherTrait};
-use satoru::withdrawal::withdrawal_vault::{IWithdrawalVaultDispatcher, IWithdrawalVaultDispatcherTrait};
+use satoru::exchange::withdrawal_handler::{
+    IWithdrawalHandlerDispatcher, IWithdrawalHandlerDispatcherTrait
+};
+use satoru::withdrawal::withdrawal_vault::{
+    IWithdrawalVaultDispatcher, IWithdrawalVaultDispatcherTrait
+};
+use satoru::fee::fee_handler::{IFeeHandlerDispatcher, IFeeHandlerDispatcherTrait};
 use satoru::data::data_store::{IDataStoreDispatcher, IDataStoreDispatcherTrait};
 use satoru::data::keys::{
     claim_fee_amount_key, claim_ui_fee_amount_key, claim_ui_fee_amount_for_account_key
 };
+use satoru::oracle::oracle_utils::{SetPricesParams, SimulatePricesParams};
 use satoru::role::role_store::{IRoleStoreDispatcher, IRoleStoreDispatcherTrait};
 use satoru::role::role;
 use satoru::withdrawal::withdrawal_utils::CreateWithdrawalParams;
 use satoru::withdrawal::withdrawal::Withdrawal;
+use traits::Default;
 
 #[test]
 fn test_create_withdrawal() {
@@ -24,27 +31,20 @@ fn test_create_withdrawal() {
     let ui_fee_receiver: ContractAddress = 0x345.try_into().unwrap();
     let market: ContractAddress = 0x456.try_into().unwrap();
 
+    start_prank(withdrawal_handler.contract_address, caller_address);
+
     let params: CreateWithdrawalParams = CreateWithdrawalParams {
-            receiver,
-            callback_contract: receiver,
-            /// The ui fee receiver.
-            ui_fee_receiver,
-            /// The market on which the withdrawal will be executed.
-            market,
-            /// The swap path for the long token
-            long_token_swap_path: Default::default(),
-            /// The short token swap path
-            short_token_swap_path: Default::default(),
-            /// The minimum amount of long tokens that must be withdrawn.
-            min_long_token_amount: Default::default(),
-            /// The minimum amount of short tokens that must be withdrawn.
-            min_short_token_amount: Default::default(),
-            /// Whether the native token should be unwrapped when executing the withdrawal.
-            should_unwrap_native_token: Default::default(),
-            /// The execution fee for the withdrawal.
-            execution_fee: Default::default(),
-            /// The gas limit for calling the callback contract.
-            callback_gas_limit: Default::default(),
+        receiver,
+        callback_contract: receiver,
+        ui_fee_receiver,
+        market,
+        long_token_swap_path: Default::default(),
+        short_token_swap_path: Default::default(),
+        min_long_token_amount: Default::default(),
+        min_short_token_amount: Default::default(),
+        should_unwrap_native_token: Default::default(),
+        execution_fee: Default::default(),
+        callback_gas_limit: Default::default(),
     };
 
     withdrawal_handler.create_withdrawal(account, params);
@@ -58,18 +58,18 @@ fn test_create_withdrawal_restricted_access() {
     let caller: ContractAddress = 0x847.try_into().unwrap();
     start_prank(withdrawal_handler.contract_address, caller);
 
-        let params: CreateWithdrawalParams = CreateWithdrawalParams {
-            receiver: Default::default(),
-            callback_contract: Default::default(),
-            ui_fee_receiver: Default::default(),
-            market: Default::default(),
-            long_token_swap_path: Default::default(),
-            short_token_swap_path: Default::default(),
-            min_long_token_amount: Default::default(),
-            min_short_token_amount: Default::default(),
-            should_unwrap_native_token: Default::default(),
-            execution_fee: Default::default(),
-            callback_gas_limit: Default::default(),
+    let params: CreateWithdrawalParams = CreateWithdrawalParams {
+        receiver: 0x785.try_into().unwrap(),
+        callback_contract: 0x786.try_into().unwrap(),
+        ui_fee_receiver: 0x345.try_into().unwrap(),
+        market: 0x346.try_into().unwrap(),
+        long_token_swap_path: Default::default(),
+        short_token_swap_path: Default::default(),
+        min_long_token_amount: Default::default(),
+        min_short_token_amount: Default::default(),
+        should_unwrap_native_token: Default::default(),
+        execution_fee: Default::default(),
+        callback_gas_limit: Default::default(),
     };
 
     withdrawal_handler.create_withdrawal(caller, params);
@@ -79,11 +79,11 @@ fn test_create_withdrawal_restricted_access() {
 fn test_cancel_withdrawal() {
     let withdrawal = Withdrawal {
         key: Default::default(),
-        account: Default::default(),
-        receiver: Default::default(),
-        callback_contract: Default::default(),
-        ui_fee_receiver: Default::default(),
-        market: Default::default(),
+        account: 0x785.try_into().unwrap(),
+        receiver: 0x787.try_into().unwrap(),
+        callback_contract: 0x348.try_into().unwrap(),
+        ui_fee_receiver: 0x345.try_into().unwrap(),
+        market: 0x346.try_into().unwrap(),
         long_token_swap_path: Default::default(),
         short_token_swap_path: Default::default(),
         market_token_amount: Default::default(),
@@ -96,6 +96,7 @@ fn test_cancel_withdrawal() {
     };
 
     let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+    start_prank(withdrawal_handler.contract_address, caller_address);
 
     let withdrawal_key = 'SAMPLE_WITHDRAW';
     data_store.set_withdrawal(withdrawal_key, withdrawal);
@@ -105,15 +106,15 @@ fn test_cancel_withdrawal() {
 }
 
 #[test]
-#[should_panic(expected: ('REVERT SMTH at unwrap',))]
+#[should_panic(expected: ('Option::unwrap failed.',))]
 fn test_cancel_withdrawal_unexist_key() {
-    let withdrawal = Withdrawal { // TODO: set block numbers to wont get reverted on exchange utils
+    let withdrawal = Withdrawal {
         key: Default::default(),
-        account: Default::default(),
-        receiver: Default::default(),
-        callback_contract: Default::default(),
-        ui_fee_receiver: Default::default(),
-        market: Default::default(),
+        account: 0x785.try_into().unwrap(),
+        receiver: 0x787.try_into().unwrap(),
+        callback_contract: 0x348.try_into().unwrap(),
+        ui_fee_receiver: 0x345.try_into().unwrap(),
+        market: 0x346.try_into().unwrap(),
         long_token_swap_path: Default::default(),
         short_token_swap_path: Default::default(),
         market_token_amount: Default::default(),
@@ -126,6 +127,7 @@ fn test_cancel_withdrawal_unexist_key() {
     };
 
     let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+    start_prank(withdrawal_handler.contract_address, caller_address);
 
     let withdrawal_key = 'SAMPLE_WITHDRAW';
 
@@ -151,6 +153,8 @@ fn test_execute_withdrawal_restricted() {
         price_feed_tokens: Default::default(),
     };
 
+    let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+
     let withdrawal_key = 'SAMPLE_WITHDRAW';
 
     withdrawal_handler.execute_withdrawal(withdrawal_key, oracle_params);
@@ -158,45 +162,6 @@ fn test_execute_withdrawal_restricted() {
 
 #[test]
 fn test_execute_withdrawal() {
-    // TODO: call with orderkeeper role
-}
-
-#[test]
-#[should_panic(expected: ('unauthorized_access',))]
-fn test_simulate_execute_withdrawal_restricted() {
-    let caller: ContractAddress = 0x847.try_into().unwrap();
-    start_prank(withdrawal_handler.contract_address, caller);
-
-    let oracle_params = SimulatePricesParams {
-        primary_tokens: Default::default(),
-        primary_prices: Default::default(),
-    };
-
-    let withdrawal_key = 'SAMPLE_WITHDRAW';
-
-    withdrawal_handler.simulate_execute_withdrawal(withdrawal_key, oracle_params);
-}
-
-#[test]
-fn test_simulate_execute_withdrawal() {
-    let oracle_params = SimulatePricesParams {
-        primary_tokens: Default::default(),
-        primary_prices: Default::default(),
-    };
-
-    let withdrawal_key = 'SAMPLE_WITHDRAW';
-
-    withdrawal_handler.simulate_execute_withdrawal(withdrawal_key, oracle_params);
-}
-
-#[test]
-fn test_execute_withdrawal_keeper() {
-    // TODO: prank caller address to contract itself.
-}
-
-#[test]
-#[should_panic(expected: ('only self',))]
-fn test_execute_withdrawal_keeper_restricted() {
     let oracle_params = SetPricesParams {
         signer_info: Default::default(),
         tokens: Default::default(),
@@ -212,29 +177,75 @@ fn test_execute_withdrawal_keeper_restricted() {
         price_feed_tokens: Default::default(),
     };
 
+    let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+    let order_keeper: ContractAddress = 0x2233.try_into().unwrap();
+    start_prank(withdrawal_handler.contract_address, order_keeper);
+
     let withdrawal_key = 'SAMPLE_WITHDRAW';
 
-    withdrawal_handler.execute_withdrawal_keeper(withdrawal_key, oracle_params, withdrawal_handler.contract_address);
+    withdrawal_handler.execute_withdrawal(withdrawal_key, oracle_params);
+}
+
+#[test]
+#[should_panic(expected: ('unauthorized_access',))]
+fn test_simulate_execute_withdrawal_restricted() {
+    let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+    let caller: ContractAddress = 0x847.try_into().unwrap();
+    start_prank(withdrawal_handler.contract_address, caller);
+
+    let oracle_params = SimulatePricesParams {
+        primary_tokens: Default::default(), primary_prices: Default::default(),
+    };
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+
+    withdrawal_handler.simulate_execute_withdrawal(withdrawal_key, oracle_params);
+}
+
+#[test]
+fn test_simulate_execute_withdrawal() {
+    let (caller_address, data_store, event_emitter, withdrawal_handler) = setup();
+    let oracle_params = SimulatePricesParams {
+        primary_tokens: Default::default(), primary_prices: Default::default(),
+    };
+
+    start_prank(withdrawal_handler.contract_address, caller_address);
+
+    let withdrawal_key = 'SAMPLE_WITHDRAW';
+
+    withdrawal_handler.simulate_execute_withdrawal(withdrawal_key, oracle_params);
 }
 
 
-fn deploy_withdrawal_handler(data_store_address: ContractAddress, role_store_address: ContractAddress,
-                                        event_emitter_address: ContractAddress, withdrawal_vault_address: ContractAddress,
-                                        oracle_address: ContractAddress) -> ContractAddress {
+fn deploy_withdrawal_handler(
+    data_store_address: ContractAddress,
+    role_store_address: ContractAddress,
+    event_emitter_address: ContractAddress,
+    withdrawal_vault_address: ContractAddress,
+    oracle_address: ContractAddress
+) -> ContractAddress {
     let contract = declare('WithdrawalHandler');
     let constructor_calldata = array![
-        data_store_address.into(), role_store_address.into(), event_emitter_address.into(), withdrawal_vault_address.into(), oracle_address.into()
+        data_store_address.into(),
+        role_store_address.into(),
+        event_emitter_address.into(),
+        withdrawal_vault_address.into(),
+        oracle_address.into()
     ];
     contract.deploy(@constructor_calldata).unwrap()
 }
 
-fn deploy_oracle(oracle_store_address: ContractAddress, role_store_address: ContractAddress) -> ContractAddress {
+fn deploy_oracle(
+    oracle_store_address: ContractAddress, role_store_address: ContractAddress
+) -> ContractAddress {
     let contract = declare('Oracle');
     let constructor_calldata = array![role_store_address.into(), oracle_store_address.into()];
     contract.deploy(@constructor_calldata).unwrap()
 }
 
-fn deploy_oracle_store(role_store_address: ContractAddress, event_emitter_address: ContractAddress) -> ContractAddress {
+fn deploy_oracle_store(
+    role_store_address: ContractAddress, event_emitter_address: ContractAddress
+) -> ContractAddress {
     let contract = declare('OracleStore');
     let constructor_calldata = array![role_store_address.into(), event_emitter_address.into()];
     contract.deploy(@constructor_calldata).unwrap()
@@ -246,7 +257,9 @@ fn deploy_withdrawal_vault(strict_bank_address: ContractAddress) -> ContractAddr
     contract.deploy(@constructor_calldata).unwrap()
 }
 
-fn deploy_strict_bank(data_store_address: ContractAddress, role_store_address: ContractAddress) -> ContractAddress {
+fn deploy_strict_bank(
+    data_store_address: ContractAddress, role_store_address: ContractAddress
+) -> ContractAddress {
     let contract = declare('StrictBank');
     let constructor_calldata = array![data_store_address.into(), role_store_address.into()];
     contract.deploy(@constructor_calldata).unwrap()
@@ -272,6 +285,7 @@ fn setup() -> (
     ContractAddress, IDataStoreDispatcher, IEventEmitterDispatcher, IWithdrawalHandlerDispatcher
 ) {
     let caller_address: ContractAddress = 0x101.try_into().unwrap();
+    let order_keeper: ContractAddress = 0x2233.try_into().unwrap();
     let role_store_address = deploy_role_store();
     let role_store = IRoleStoreDispatcher { contract_address: role_store_address };
     let data_store_address = deploy_data_store(role_store_address);
@@ -283,11 +297,19 @@ fn setup() -> (
     let oracle_store_address = deploy_oracle_store(role_store_address, event_emitter_address);
     let oracle_address = deploy_oracle(oracle_store_address, role_store_address);
     let withdrawal_handler_address = deploy_withdrawal_handler(
-        data_store_address, role_store_address, event_emitter_address, withdrawal_vault_address, oracle_address
+        data_store_address,
+        role_store_address,
+        event_emitter_address,
+        withdrawal_vault_address,
+        oracle_address
     );
-    let fee_handler = IFeeHandlerDispatcher { contract_address: fee_handler_address };
+
+    let withdrawal_handler = IWithdrawalHandlerDispatcher {
+        contract_address: withdrawal_handler_address
+    };
     start_prank(role_store_address, caller_address);
     role_store.grant_role(caller_address, role::CONTROLLER);
+    role_store.grant_role(order_keeper, role::ORDER_KEEPER);
     start_prank(data_store_address, caller_address);
-    (caller_address, data_store, event_emitter, fee_handler)
+    (caller_address, data_store, event_emitter, withdrawal_handler)
 }
